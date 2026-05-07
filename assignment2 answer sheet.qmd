@@ -1,0 +1,614 @@
+---
+title: "MSIN0094 Second Assignment Answer Sheet"
+colorlinks: true
+code-line-numbers: true
+format:
+  docx: 
+    number-sections: true
+    toc: false
+    number-depth: 2
+    fontsize: 10pt
+    linestretch: 1.5
+knitr:
+  opts_chunk:
+    echo: true
+    warning: true
+    message: true
+    error: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+Candidate Name: Kuei Chun Liu
+
+Self-reported word count: 1500 words
+
+```{r}
+#| eval: true
+#| echo: false
+#| warning: false
+# load necessary functions
+pacman::p_load(dplyr,broom)
+
+# please complete the read.csv() below to load the data
+data_full <- read.csv("C:\\Users\\User\\OneDrive\\桌面\\Second Assignment Files-20251102\\data_amazon.csv")
+```
+
+# Break-Even Response Rate (16pts)
+
+***Question 1.*** Compute the break-even response rate for Tom's targeting campaign based on the cost information given and assign it into a variable named `breakeven_response_rate`. Explain the role of break-even response rate in the focal targeted marketing campaign. (**7 pt**)
+
+The break-even response rate is the minimum percentage of customers who must respond to the marketing campaign for it to cover its total cost. In this case, the cost per offer includes the printing and mailing fee (1.5), while the profit per customer is calculated from the expected revenue (40) minus cost of goods sold (90%), plus the subscription fee (6.99), and minus the shipping cost (4).
+
+Using these values, the break-even response rate is computed as: breakeven_response_rate = cost_per_offer/profit_per_customer.
+
+This rate indicates the minimum response level that makes the campaign neither profitable nor loss-making. If the actual response rate exceeds this threshold, the campaign generates profit; if it falls below, the company loses money. Therefore, it helps marketers decide whether a campaign is financially viable before launching it.
+
+```{r}
+
+# complete the code below.
+# you can create additional intermediate variables if needed
+
+#Define basic cost and revenue parameters
+printing_mailing_fee <- 1.5  #Including cost of printing and mailing per offer
+subscription_fee <- 6.99     #1-month discounted subscription fee for Amazon Prime
+expected_revenue <- 40       #Cost of goods sold as a percentage of revenue
+COGS <- 0.9                  #Cost of shipping goods per order
+shipping_fee <- 4            #Cost of shipping goods per order
+
+#Calculate cost per offer
+#Total cost per offer includes printing and mailing
+cost_per_offer <- printing_mailing_fee
+
+#Calculate profit per customer
+profit_per_customer <- expected_revenue*(1-COGS)+subscription_fee-shipping_fee
+
+#Compute break-even response rate
+breakeven_response_rate <- cost_per_offer / profit_per_customer
+
+```
+
+```{r}
+
+# pls do not modify the codes below
+# these are for TAs to check results
+print(paste("cost_per_offer is ", cost_per_offer))
+
+print(paste("profit_per_customer is", profit_per_customer))
+
+print(paste("breakeven_response_rate is", breakeven_response_rate))
+```
+
+***Question 2.*** Compute the ROI of marketing for **blanket marketing** by sending offers to all customers in the `data_full`. (**5 pt**)
+
+The ROI (Return on Investment) for blanket marketing is −0.218984, meaning the campaign generates a loss. In this case, offers were sent to all 5,000 customers, resulting in total mailing costs of 7,500 and total profit of 5,857.62.
+
+Since ROI is calculated as ROI = (Total Profit − Total Cost) / Total Cost, a negative ROI indicates that the costs of printing and mailing exceeded the total profit gained from subscribers.
+
+This suggests that blanket marketing is not an efficient approach because most customers did not respond or subscribe. The campaign wasted resources on uninterested customers, leading to a financial loss. Tom should instead use targeted marketing methods, such as RFM segmentation or predictive models, to identify high-potential customers and improve ROI.
+
+```{r}
+#Define variables
+num_customers <- nrow(data_full)       #Total number of customers in the dataset
+num_subscribers <- sum(data_full$subscribe == "yes")  #Total number of customers who subscribed
+
+#Compute overall response rate
+#Calculate the response rate by dividing total subscribers by total customers
+overall_response_rate <- num_customers/num_subscribers
+
+#Compute total mailing costs
+#Multiply the number of customers by the cost per offer to get total mailing costs
+total_costs_of_mailing_blanket <- num_customers*cost_per_offer
+
+#Compute total profit from all subscribers
+#Multiply total subscribers by profit per customer to get total profit
+total_profit_blanket <- num_subscribers*profit_per_customer
+
+#Calculate ROI for blanket marketing
+#ROI = (Total Profit-Total Cost)/Total Cost
+ROI_blanket <- (total_profit_blanket-total_costs_of_mailing_blanket)/total_costs_of_mailing_blanket
+```
+
+```{r}
+# do not modify the code below
+print(paste("total_costs_of_mailing_blanket is ", total_costs_of_mailing_blanket))
+
+print(paste("total_profit_blanket is ", total_profit_blanket))
+
+print(paste("ROI_blanket is ", ROI_blanket))
+```
+
+# Descriptive Analytics for Segmentation and Targeting: RFM Analysis (24 pts)
+
+***Question 3.*** Use `dplyr` data wrangling tools to compute the RFM variables `recency`, `frequency`, and `monetary_value` based on existing variables in the data. Also create a binary numeric variable `subscribe_yes` which equals 1 if a user subscribes and 0 otherwise. Report the summary statistics AND correlation table of `recency`, `frequency`, `monetary_value`, and `subscribe_yes`. Discuss any notable findings relevant for targeted marketing from the correlation table (**10 pts**)
+
+We can see that customers who are recent, frequent, and high spenders are more likely to subscribe, which aligns with typical RFM model expectations.
+
+Recency has a negative relationship with subscribe_yes, meaning that customers who made more recent purchases (lower recency values) are more likely to subscribe.
+
+Frequency shows a positive correlation with subscribe_yes, suggesting that customers who purchase more frequently tend to be more responsive to subscription offers.
+
+Monetary value also has a positive correlation with subscribe_yes, indicating that higher-spending customers are more likely to subscribe.
+
+```{r}
+# create the required variables below
+
+#Create the required variables for RFM model
+data_RFM <- data_full %>%
+  mutate(
+    #Number of days since last purchase (lower = more recent)
+    recency = last,
+    #Total number of purchases across all product categories
+    frequency = home + sports + clothes + health + books + digital + toys,
+    #Total spending on electronics and non-electronics
+    monetary_value = electronics + nonelectronics,
+    #Convert subscription status into numeric (1 = yes, 0 = no)
+    subscribe_yes = ifelse(subscribe == "yes", 1, 0)
+    )
+```
+
+```{r}
+# report the summary statistics below
+
+#Report the summary statistics for key variables
+summary_stats <- data_RFM %>%
+  #Summarize recency, frequency, monetary_value, and subscribe_yes
+  #Calculate minimum, maximum, mean, median, and standard deviation
+  summarise(across(c(recency, frequency, monetary_value, subscribe_yes), 
+                   list(Min=min, Max=max, Mean=mean, Median=median, SD=sd), 
+                   .names = "{.col}_{.fn}"))
+
+#Display summary statistics for selected columns
+summary_stats
+
+#Provide a quick summary table for all selected variables
+summary(select(data_RFM, recency, frequency, monetary_value, subscribe_yes))
+
+```
+
+```{r}
+# report the correlation table below
+
+#Take data_RFM to analyze the selected variables (recency, frequency, monetary_value, subscribe_yes). Then calculate the correlation between them.
+correlation_table <- data_RFM %>%
+  select(recency, frequency, monetary_value, subscribe_yes) %>%
+  cor()
+
+#Display the correlation table
+correlation_table
+
+```
+
+***Question 4.*** Use R's `dplyr` package to implement the RFM segmentation algorithm described above, dividing customers into 125 R-F-M segments based on their RFM variables. The resulting dataset should have the same rows as `data_RFM` but include the following new variables: `recency_quintile`, `frequency_quintile`, `monetary_quintile`, and `avg_response_rate` (the average response rate for each RFM segment). Report which RFM segment has the highest average response rate? (**8 pts**)
+
+```{r}
+# create the RFM segments below
+data_RFM <- data_RFM %>%
+  #Recency quintile:fewer days is more useful data, which can get higher rank
+  mutate(recency_quintile = ntile(desc(recency), 5)) %>%
+  group_by(recency_quintile) %>% 
+  #Frequency quintile:higher purchase frequency received higher rank
+  mutate(frequency_quintile = ntile(frequency, 5)) %>%
+  ungroup() %>%
+  group_by(recency_quintile, frequency_quintile) %>% 
+  #Monetary quintile:higher prices can received higher rank
+  mutate(monetary_quintile = ntile(monetary_value, 5)) %>%
+  ungroup()
+
+```
+
+```{r}
+# report the RFM segment with highest average response rate below
+
+#Calculate the average response rate for each RFM segment
+highest_avg_response_rate_segment <- data_RFM %>%
+  #Group by Recency, Frequency, and Monetary quintiles
+  group_by(recency_quintile, frequency_quintile, monetary_quintile,) %>%
+  summarise(
+    #Compute mean response rate (excluding missing values)
+    avg_response_rate = mean(subscribe_yes, na.rm = TRUE),
+    #Count number of customers in each segment
+    count_in_segment = n(),
+    .groups = "drop"
+  )%>%
+  #Arrange segments in descending order of response rate
+  arrange(desc(avg_response_rate))
+
+#Extract the single best RFM segment (top performer)
+best_segment <-highest_avg_response_rate_segment %>%
+  slice_head(n=1)  #Extract only the top 1 segment (highest average response rate)
+
+# Display the best-performing RFM segment
+best_segment
+```
+
+```{r}
+# do not modify the code below, this is for TA to check the results
+highest_avg_response_rate_segment %>%
+  dplyr::glimpse()
+```
+
+***Question 5.*** Among the RFM segments created in the previous step, which segment(s) should Tom target for the marketing campaign (i.e., send marketing offers to all customers in those segments)? Compute the ROI of marketing if Tom conducts targeted marketing to the segment you selected. (**6 pts**)
+
+The targeted RFM segment was chosen because it had an average response rate higher than the breakeven response rate, meaning the expected profit from this group exceeds the marketing cost.\
+Specifically, the campaign achieved a total profit of 3,942.36 and a total cost of 2,820, resulting in an ROI of 0.398.\
+This indicates that targeting customers with high recency, high monetary value, and moderate frequency is more profitable, as these customers are more likely to respond positively and generate higher returns compared to blanket marketing.
+
+```{r}
+# Write your codes below to compute the ROI for the targeted marketing based on RFM segments
+
+#Build the targeted RFM segments
+data_RFM <- data_RFM %>%
+  group_by(recency_quintile, frequency_quintile, monetary_quintile) %>%
+  mutate(avg_response_rate = mean(subscribe_yes)) %>%
+  ungroup()
+
+#Select only segments with average response rate above breakeven threshold
+targeted_data <- data_RFM %>%
+  filter(avg_response_rate > breakeven_response_rate)
+
+#Extract customers who actually subscribed (response = 1)
+subscribed_customers <- targeted_data %>%
+  filter(subscribe_yes == 1)
+
+#Compute total mailing cost
+#Total mailing cost = cost per offer*number of customers in the selected segment
+total_costs_of_mailing_RFM <- cost_per_offer*nrow(targeted_data)
+
+#Compute total profit
+#Total profit = profit per customer*number of customers*response rate
+total_profit_RFM <- profit_per_customer * nrow(subscribed_customers)
+
+#Compute ROI
+#ROI = (Total Profit - Total Cost)/Total Cost
+ROI_RFM <- (total_profit_RFM - total_costs_of_mailing_RFM) / total_costs_of_mailing_RFM
+```
+
+```{r}
+# do not modify the code below
+print(paste("total_costs_of_mailing_RFM is ", total_costs_of_mailing_RFM))
+print(paste("total_profit_RFM is ", total_profit_RFM))
+print(paste("ROI_RFM is ", ROI_RFM))
+```
+
+# Unsupervised Learning for Segmentation and Targeting (22 pts)
+
+***Question 6.*** Use the three RFM variables to segment customers using the K-means clustering algorithm. Please use `set.seed(888)` for reproducibility. Specify `x` and `centers` in the `kmeans()` function, while using the default values for ALL remaining arguments for simplicity. (**8 pts**)
+
+Select relevant variables (recency, frequency, monetary_value) for k-means, since they represent customer activity, loyalty, and value.
+
+Standardization using scale(): Because the RFM variables are measured in different units (e.g., recency in days, frequency in counts, monetary in dollars), we must scale them to have mean = 0 and standard deviation = 1. Without standardization, variables with large numeric ranges (e.g., monetary_value) would dominate the clustering result.
+
+Convert to data frame (as.data.frame()): After scaling, the output becomes a matrix. Converting it back to a data frame ensures compatibility with the K-means function and later visualization.
+
+Then we determine the optimal number of clusters using the Elbow Method, which helps us find where the within-cluster variation (“wss”) stops decreasing sharply — this “elbow point” represents the best K value.
+
+```{r}
+# create the RFM variables below
+
+#Rebuild the RFM variables from the original dataset
+data_RFM_full <- data_full %>%
+  mutate(
+    #Days since last purchase (lower = more recent)
+    recency = last,  
+    #Total number of purchases across all product categories
+    frequency = home + sports + clothes + health + books + digital + toys,
+    #Total spending on electronics and non-electronics
+    monetary_value = electronics + nonelectronics,
+    #Convert subscription status to binary (1 = yes, 0 = no)
+    subscribe_yes = ifelse(subscribe == "yes", 1, 0))
+
+#Choose only RFM variables for clustering
+data_raw_kmeans <- data_RFM_full  %>%
+  select(recency, frequency, monetary_value)
+```
+
+```{r}
+# Complete the code below to pre-process the data for k-means clustering
+
+#Standardize data for K-means clustering
+#Scale the selected RFM variables so that all features have equal importance
+#Convert the result to a data frame for compatibility with clustering
+data_kmeans_scaled <- data_raw_kmeans %>%
+  scale() %>% 
+  as.data.frame()
+```
+
+```{r}
+# Determine the optimal number of clusters using the Elbow method below
+# do not modify the seed below
+
+set.seed(888)                    #Set a random seed to ensure reproducibility
+pacman::p_load(factoextra)       #Load required visualization package
+#Apply the Elbow method to visualize within-cluster sum of squares (WSS)
+data_kmeans_scaled %>%
+    fviz_nbclust(kmeans, method = "wss")
+```
+
+```{r}
+# implement k-means clustering below
+# do not modify seeds
+
+set.seed(888)  #Set the seed to ensure reproducible clustering results
+
+#Execute K-means clustering on the standardized RFM dataset
+#Use 4 clusters and 10 different random starting points for stability
+result_kmeans <- kmeans(x = data_kmeans_scaled, 
+                        centers = 4,    #Number of clusters to form
+                        nstart = 10)    #Number of random initializations
+
+#Add the K-means clustering results back to the original RFM dataset
+#Each customer is assigned to one of the 4 clusters
+data_RFM_kmeans <- data_RFM_full %>%
+  mutate(cluster = result_kmeans$cluster)
+```
+
+```{r}
+# do no modify the code below, this is for TA to check the results
+
+#Use broom::tidy() to display key information about the cluster centroids
+pacman::p_load(broom)
+result_kmeans %>%
+  tidy()
+```
+
+***Question 7*** . Among the segments from k-means, which segment should Tom target for the marketing campaign (i.e., send marketing offers to all customers in that segment)? Tip: `result_kmeans$cluster` returns an R vector that tells us which segment each customer is in, in the same order as the rows in `data_kmeans`. (**6 pts**)
+
+Cluster 2 has high frequency (1.57) and high monetary value (0.95), while recency (–0.18) is relatively low, meaning these customers purchased recently.
+
+This indicates that customers in Cluster 2 are active, loyal, and high-value buyers who are more likely to respond positively to new marketing offers or product promotions.
+
+In contrast, Cluster 3 has high recency (1.94, long time since last purchase), Cluster 4 has low spending and low frequency, and Cluster 1 is moderate in both behavior and value.
+
+```{r}
+# Write your codes here to reason which segment to target
+# Show numbers from your coding to support your argument.
+
+#Analyze K-means clusters to identify the best segment to target:
+#Join the K-means cluster assignments back to the main RFM dataset
+#This allows comparison of customer characteristics across clusters
+data_RFM_kmeans <- data_RFM_full %>%
+  mutate(cluster = result_kmeans$cluster)
+
+#Summarize the characteristics and performance of each cluster:
+#Group customers by cluster and compute average RFM values and response rate
+cluster_summary <- data_RFM_kmeans %>%
+  group_by(cluster) %>%
+  summarise(  
+    R_mean = mean(recency),              #Average recency (lower = more recent)
+    F_mean = mean(frequency),            #Average purchase frequency
+    M_mean = mean(monetary_value),       #Average monetary spending
+    avg_response_rate = mean(subscribe_yes),  #Average subscription rate (response)
+    num_customers = n(),                 #Number of customers in each cluster
+    .groups = 'drop')           #Removes the grouping variables after summarization
+
+#Identify the best cluster to target:
+#Select the single cluster with the highest average response rate
+best_cluster_kmeans <- cluster_summary %>%
+  #Sort clusters from highest to lowest response rate
+  arrange(desc(avg_response_rate)) %>%  
+  head(1)  #Display the top-performing cluster
+```
+
+```{r}
+# Compute the ROI of marketing if Tom conducts k-means targeted marketing to the segment you selected
+
+#Get the total number of customers in the best-performing cluster
+num_targeted_customers_kmeans <- best_cluster_kmeans$num_customers
+
+#Get the average response rate of the best-performing cluster
+avg_response_rate_kmeans <- best_cluster_kmeans$avg_response_rate
+
+#Compute total mailing cost
+#Calculate the total mailing cost by multiplying the number of targeted customers by cost per offer
+total_costs_of_mailing_kmeans <- num_targeted_customers_kmeans * cost_per_offer
+
+#Compute total profit
+#Calculate total profit by multiplying the number of targeted customers, their average response rate, and profit per customer
+total_profit_kmeans <- (num_targeted_customers_kmeans * avg_response_rate_kmeans) * profit_per_customer
+
+#Compute ROI
+#ROI = (Total Profit − Total Cost) / Total Cost
+ROI_kmeans <- (total_profit_kmeans - total_costs_of_mailing_kmeans) / total_costs_of_mailing_kmeans
+```
+
+```{r}
+# do not modify the code below
+
+print(paste("ROI_kmeans is ", ROI_kmeans))
+```
+
+***Question 8.*** Discuss the pros and cons of using K-means clustering to conduct segmentation and targeting for this dataset. (**4pts**, 200 words)
+
+On the positive side, K-means is a simple and efficient algorithm that works well for large datasets. By using the three standardized RFM variables (recency, frequency, monetary value), it automatically groups customers with similar purchasing patterns, allowing Tom to identify distinct behavioral clusters for marketing targeting. The algorithm is computationally fast, easily reproducible (using set.seed 888), and the cluster centroids offer clear interpretations of each group’s value level.
+
+However, K-means also has several limitations. It assumes clusters are spherical and evenly sized, which may not reflect the real structure of customer data. The algorithm is sensitive to outliers and initial starting points, potentially leading to unstable cluster assignments. Moreover, because K-means requires pre-specifying the number of clusters (k = 4 in this case), the final segmentation depends on the researcher’s judgment and the Elbow method, which is somewhat subjective. Finally, it does not consider non-linear relationships or categorical variables, which limits its accuracy in modeling complex customer behavior.
+
+To sum up, K-means provides a useful, interpretable baseline for customer segmentation, but results should be validated with other methods (such as hierarchical clustering or decision trees) before making final marketing decisions.
+
+# Decision Tree Analysis (24 pts)
+
+***Question 9.*** Complete the following data preparation tasks before training a decision tree model. (**10 pts**)
+
+A. Do we need to scale the predictor variables when training a decision tree model?
+
+We do not need to scale the predictor variables when training a decision tree model.\
+Decision trees split data based on the values of predictor variables using threshold rules (for example, *recency \< 10* or *frequency \> 3*). The model only cares about the order of the values, not their absolute magnitudes. Therefore, whether a variable is measured in dollars or counts does not affect how the tree decides its splits. Unlike algorithms such as K-means, which rely on distance calculations or gradient optimization, decision trees are not sensitive to the scale of the input variables.
+
+Scaling or standardizing the predictors will not improve model accuracy and may even make the results harder to interpret, as it changes the original units of the variables. The main focus of a decision tree is to find the best cut-off points that minimize impurity (e.g., Gini index), and this process is independent of the scale. Hence, for this dataset, Tom can directly use the raw RFM variables (recency, frequency, and monetary value) without normalization.
+
+B. Explain why we need to split data into a training set and a test set for supervised learning tasks, rather than using the full dataset for both training and evaluation.
+
+We must split the dataset into training and test sets to properly evaluate the predictive performance of a supervised learning model. If we train and test the model on the same data may lead to "overfitting", which means the model may simply “memorize” the existing patterns rather than learning generalizable rules. An overfitted model performs very well on the training data but fails to predict new or unseen customers accurately.
+
+By dividing the data (e.g., 70% for training and 30% for testing), the training set helps the model learn the relationships between predictors (recency, frequency, and monetary value) and the target variable (subscribe_yes), while the test set acts as unseen data to measure how well the model generalizes to new customers. This split simulates real-world marketing applications, where predictions are made on customers who were not part of the model-building process.
+
+Evaluating model accuracy, profit, or ROI on the test set provides an honest estimate of expected performance in deployment. Using the full dataset for both training and testing would lead to overly optimistic metrics and give Tom a misleading impression of the model’s true value.
+
+```{r}
+# set seed, please do not change the seed
+
+#Load the dplyr library for data manipulation
+library(dplyr)
+
+#Set seed for reproducibility to ensure consistent results
+set.seed(1314520)
+
+#Prepare data for decision tree:
+#Convert the "subscribe" column (character) into a numeric variable (1=yes, 0=no)  and calculate RFM variables for model training
+data_tree <- data_full %>%
+  mutate(recency = last,     #Number of days since last purchase
+         #Total number of purchases
+         frequency = home + sports + clothes + health + books + digital + toys,
+         #Total spending across product categories
+         monetary_value = electronics + nonelectronics,
+         #Binary variable for subscription status
+         subscribe_yes = ifelse(subscribe == "yes", 1, 0))
+
+#Split the dataset into training and test sets:
+#Randomly sample 70% of the data for training
+training_set_index <- sample(1:nrow(data_tree), 0.7 * nrow(data_tree),replace = FALSE)
+#Create training and testing datasets
+data_training <- data_tree[training_set_index, ]   #70% training data
+data_test <- data_tree[-training_set_index, ]      #30% testing data
+```
+
+```{r}
+# Do not modify this code block.
+# This is to print out first 5 customers
+training_set_index[1:5]
+```
+
+***Question 10.*** Complete the following steps to train a decision tree model (**10 pts**)
+
+The trained decision tree model, tree1, predicts the response probability for a new customer by following the same set of decision rules learned from past data. When a new customer’s characteristics—such as recency, frequency, and monetary value—are provided, the model starts at the root node and checks which side of each splitting rule the customer falls on. It keeps moving down the branches until reaching a terminal leaf node. Each leaf stores the average response probability of customers from the training data who share similar characteristics. The value at that leaf is then assigned as the predicted probability that the new customer will subscribe. For example, if a customer has recency \< 10 and frequency ≥ 3, the model assigns the probability 0.33 based on the corresponding leaf node.
+
+```{r}
+# train model tree1 below
+
+#Load necessary packages for building and plotting decision trees
+pacman::p_load(rpart,rpart.plot)
+
+#Build the decision tree model using all purchase-related variables
+#The formula defines subscribe_yes as the target variable, and recency, frequency, and monetary_value as predictors
+tree1 <- rpart(
+  formula = subscribe_yes ~ recency + frequency + monetary_value,  #formula
+  data    = data_training,  #Dataset
+  method  = "anova")  #Used because the target variable (1/0) is numeric, so regression (anova) is appropriate
+
+#Visualize the decision tree
+rpart.plot(tree1)
+
+```
+
+***Question 11.*** Compute the ROI from targeted marketing using `tree1`.
+
+Between the two models, the decision tree model achieves a much higher ROI (0.6776) compared with the k-means model (0.2221). This indicates that the decision tree is more effective at identifying customers who are more likely to subscribe, thus reducing unnecessary marketing costs and improving profit efficiency.
+
+The main reason for its superior performance is that the decision tree uses a supervised learning approach, meaning it learns directly from labeled data (subscribe = yes or no). This allows it to find changing pattern between predictors such as recency, frequency, and monetary value, and the actual response behavior. In contrast, k-means is unsupervised and only clusters customers based on similarities in spending behavior, without using the true response variable, leading to less precise targeting and a lower ROI.
+
+```{r}
+# Compute the ROI for tree1 below.
+
+#Get the predicted probability of subscribing ("1") for each customer
+prediction_tree1 <- predict(tree1, data_test)
+p_pop <- as.numeric(prediction_tree1)
+
+#Add predicted probabilities and target flag to the dataset
+data_test <- data_test %>%
+  mutate(
+    predicted_prob_decisiontree = as.numeric(p_pop),
+    is_target_decisiontree = as.integer(predicted_prob_decisiontree > breakeven_response_rate,1,0))
+
+#Calculate total mailing cost by multiplying cost per offer by number of targeted customers
+total_costs_of_mailing_decisiontree1 <-cost_per_offer * sum(data_test$is_target_decisiontree)
+
+#Filter only the customers that were targeted for the marketing campaign
+data_test_targeted_customers <- data_test %>% filter(is_target_decisiontree == 1)
+
+#Calculate total profit = number of subscribers*profit per customer
+total_profit_decisiontree1 <- sum(data_test_targeted_customers$subscribe_yes==1) * profit_per_customer
+
+# Compute ROI = (Total Profit − Total Cost)/Total Cost
+ROI_decisiontree1 <- (total_profit_decisiontree1 - total_costs_of_mailing_decisiontree1) / total_costs_of_mailing_decisiontree1
+```
+
+```{r}
+# do not modify the code below
+print(paste("ROI_decisiontree1 is ", ROI_decisiontree1))
+```
+
+# Random Forest (20 pts)
+
+***Question 12.*** Train a random forest model with the same set of predictors as `tree1` (**4 pts**)
+
+This question requires training a Random Forest model to predict the probability of customer response to the Amazon Prime offer. We will use the same RFM predictors (Recency, Frequency, Monetary Value) as tree1 , build 2,000 trees on the training set (data_training), and set a random seed (seed = 888) for reproducibility.
+
+```{r}
+# train the random forest model below
+
+#Load the required package
+pacman::p_load(ranger)
+randomforest <- ranger(
+    formula = subscribe_yes ~ recency + frequency + monetary_value,
+    #Define predictors and target
+    data = data_training,  #Dataset to train the model
+    num.trees = 2000,      #Build 2000 decision trees for better accuracy
+    seed = 888,            #Set random seed for reproducibility
+    probability = TRUE)    #Output predicted probabilities instead of classes
+
+
+# compute the ROI for random forest below
+
+#Predict the probability of subscribing for test data
+prediction_rf <- predict(randomforest, data_test)
+
+#Add predicted probabilities and target flags to the dataset
+data_test <- data_test %>%
+  #Extract the predicted probability for class "1" (subscribe).
+  mutate(predicted_prob_randomforest = prediction_rf$prediction[,2]) %>%
+  #Flag customers as targets(1) if their predicted probability exceeds the breakeven response rate
+  mutate(is_target_randomforest = ifelse(predicted_prob_randomforest >= breakeven_response_rate, 1, 0))
+
+#Compute total mailing cost
+#Multiply the number of targeted customers by the cost per offer
+total_costs_of_mailing_randomforest <- cost_per_offer * sum(data_test$is_target_randomforest)
+
+#Compute total profit from actual subscribers in the targeted group
+data_test_targeted_customers_rf <- data_test %>%
+  #Select true subscribers from targeted group
+  filter(is_target_randomforest == 1 & subscribe_yes ==1)
+
+#Profit = number of subscribers*profit per customer
+total_profit_randomforest <- nrow(data_test_targeted_customers_rf) * profit_per_customer
+
+#Calculate ROI = (Total Profit − Total Cost)/Total Cost
+ROI_randomforest <- (total_profit_randomforest - total_costs_of_mailing_randomforest) / total_costs_of_mailing_randomforest
+
+```
+
+```{r}
+# do not modify the code below
+
+print(paste("ROI_randomforest is ", ROI_randomforest))
+```
+
+***Question 13.*** Based on the results of different models you have obtained in this assignment so far, discuss the fundamental tradeoffs of supervised learning (**8 pts**, 300 words)
+
+We can discuss the tradeoffs involved in supervised learning, which involve key tradeoffs between bias and variance, interpretability and accuracy, and complexity and overfitting. Understanding these tradeoffs helps balance predictive performance and practical usefulness.
+
+First, the **bias vs. variance** tradeoff reflects the tension between model simplicity and flexibility. A simple model like the decision tree tends to have higher bias but lower variance—it captures main patterns but may miss finer details. The random forest, by averaging many trees, reduces variance and achieves more stable predictions. However, it may slightly increase bias due to aggregation. For example, in this assignment, the decision tree achieved the highest ROI (0.6776), while the random forest’s ROI (0.4940) was slightly lower but more stable.
+
+Second, the **interpretability vs. accuracy** tradeoff shows that models that are easier to explain often perform worse on complex data. The decision tree is transparent and easy to visualize; business users can easily understand why certain customers were targeted. In contrast, the random forest is a less interpretable model with higher computational cost, making it harder to explain even though it can handle nonlinear interactions better.
+
+Finally, the **complexity vs. overfitting** tradeoff highlights the risk of fitting too closely to training data. Overly complex models (e.g., random forest) can capture noise rather than signal, while simpler models (e.g., RFM or k-means) might underfit and miss important relationships. Hence, supervised models must strike a balance—complex enough to capture true patterns, yet simple enough to generalize well to new data.
+
+***Question 14.*** Discuss at least two recommendations for Tom to improve the performance of the random forest model based without collecting more data. (**8pts**, 250 words)
+
+To improve the random forest model without collecting new data, Tom can focus on "tuning the model settings" and "improving the input variables".
+
+First, **model tuning** can make predictions more accurate. For example, Tom can try changing the number of trees (num.trees) or the number of variables used in each split (mtry). More trees can make the model more stable, while adjusting mtry helps find a better balance between bias and variance. Tom can also change the smallest number of samples allowed in a leaf (min.node.size) to stop the model from overfitting. Cross-validation can be used to test which setting works best.
+
+Second, **feature improvement** can help the model learn better patterns from the same data. Tom can create new combined features, such as “recency × frequency” or “average money spent per purchase.” He can also transform variables (e.g., using a log transformation on monetary_value) to make the data more balanced and easier for the model to understand.
+
+By adjusting these settings and improving variables, Tom can make the random forest model more accurate and reliable without gathering more data.
